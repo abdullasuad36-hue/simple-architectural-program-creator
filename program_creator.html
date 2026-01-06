@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Program Blocks 3D (family colors + strong per-space variation + isometric + dashed box + HQ PNG + labels)</title>
+  <style>
+    /*
+      FONT NOTE:
+      - Browsers cannot reliably load a font from an absolute Windows path like:
+        C:\Users\...\HelveticaNowDisplay-Regular.ttf
+      - Put HelveticaNowDisplay-Regular.ttf in the SAME folder as this .html file (or adjust the url below).
+    */
+    @font-face {
+      font-family: "HelveticaNowDisplay";
+      src:
+        local("HelveticaNowDisplay-Regular"),
+        local("Helvetica Now Display"),
+        url("./HelveticaNowDisplay-Regular.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    body {
+      margin: 0;
+      font-family: HelveticaNowDisplay, Helvetica, Arial, sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #sidebar {
+      width: 360px; padding: 10px; box-sizing: border-box;
+      border-right: 1px solid #ccc; overflow-y: auto; font-size: 13px; background: #f8f8f8;
+      font-family: HelveticaNowDisplay, Helvetica, Arial, sans-serif;
+    }
+    #sidebar h2 { margin: 10px 0 6px; font-size: 14px; }
+    #sidebar label { display: block; margin-top: 6px; }
+    #sidebar input, #sidebar select, #sidebar button {
+      font-size: 12px; padding: 4px; margin-top: 2px; width: 100%; box-sizing: border-box;
+      font-family: HelveticaNowDisplay, Helvetica, Arial, sans-serif;
+    }
+    #sidebar table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 11px; }
+    #sidebar th, #sidebar td { border: 1px solid #ccc; padding: 2px 3px; text-align: left; }
+    #sidebar th { background: #eee; }
+    .btn-row { display: flex; gap: 6px; margin-top: 6px; }
+    .btn-row button { flex: 1; }
+    .row { display:flex; align-items:center; gap:8px; margin-top:6px; }
+    .row input[type="checkbox"]{ width:auto; margin:0; }
+    .note { font-size: 12px; color:#333; background:#fff; border:1px solid #ddd; padding:6px; border-radius:6px; }
+    #main { flex: 1; position: relative; background: #ffffff; }
+    #viewport { width: 100%; height: 100%; display: block; }
+
+    #labelsLayer {
+      position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      font-family: HelveticaNowDisplay, Helvetica, Arial, sans-serif;
+      font-size: 16px; /* ON-SCREEN LABEL SIZE (change this) */
+    }
+    .bubble-label {
+      position: absolute; transform: translate(-50%, -50%); white-space: nowrap;
+      padding: 0; background: transparent; border: none;
+      color: rgba(255,255,255,0.95);
+      text-shadow: 0 0 3px rgba(0,0,0,0.75), 0 0 1px rgba(0,0,0,0.95);
+      font-family: HelveticaNowDisplay, Helvetica, Arial, sans-serif;
+      will-change: transform, opacity;
+    }
+    #labelsLayer.noLabelShadow .bubble-label { text-shadow: none; }
+
+    #exportArea {
+      width: 100%; height: 160px; box-sizing: border-box;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 10px; margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h2>Boundary (Box)</h2>
+    <div class="note">
+      Box dimensions use the same units as space L/D/H.<br/>
+      The solver keeps spaces INSIDE whenever physically feasible.<br/>
+      Only spaces that cannot fit (by size) or the minimum needed to avoid impossible packing are allowed to spill.<br/>
+      Weights affect horizontal (XZ) proximity only.
+    </div>
+
+    <label>Box Width (X)
+      <input type="number" id="boxW" step="0.1" value="50" />
+    </label>
+    <label>Box Height (Y)
+      <input type="number" id="boxH" step="0.1" value="25" />
+    </label>
+    <label>Box Depth (Z)
+      <input type="number" id="boxD" step="0.1" value="200" />
+    </label>
+
+    <div class="btn-row">
+      <button id="applyBoxBtn">Apply box + respawn</button>
+      <button id="toggleSimBtn">Pause</button>
+    </div>
+
+    <div class="btn-row">
+      <button id="spawnBtn">Spawn (weights)</button>
+      <button id="clearAllBtn">Clear</button>
+    </div>
+
+    <h2>View</h2>
+    <div class="row">
+      <input type="checkbox" id="isometricView" />
+      <label for="isometricView" style="margin:0;">Isometric (orthographic)</label>
+    </div>
+    <div class="btn-row">
+      <button id="snapIsoBtn">Snap to isometric</button>
+      <button id="savePngBtn">Save PNG (exact screen)</button>
+    </div>
+
+    <div class="row" style="margin-top:8px;">
+      <input type="checkbox" id="showLabels" checked />
+      <label for="showLabels" style="margin:0;">Show labels</label>
+    </div>
+
+    <div class="row">
+      <input type="checkbox" id="labelShadow" checked />
+      <label for="labelShadow" style="margin:0;">Label shadow</label>
+    </div>
+
+    <div class="row">
+      <input type="checkbox" id="voidsTransparent" />
+      <label for="voidsTransparent" style="margin:0;">Voids fully transparent</label>
+    </div>
+
+    <label>Label text
+      <select id="labelMode">
+        <option value="name" selected>Name (space_type)</option>
+        <option value="code">Code (from program table)</option>
+        <option value="id">Instance ID</option>
+      </select>
+    </label>
+
+    <h2>Import CSV</h2>
+    <label>Program CSV (must include length/depth/height columns)
+      <input type="file" id="programCsvInput" accept=".csv" />
+    </label>
+    <label>Relationship CSV (weights matrix)
+      <input type="file" id="relationCsvInput" accept=".csv" />
+    </label>
+
+    <div class="btn-row">
+      <button id="exportBtn">Export JSON</button>
+    </div>
+
+    <h2>Space Types</h2>
+    <table>
+      <thead><tr><th>ID</th><th>Name</th><th>Color</th></tr></thead>
+      <tbody id="typesTableBody"></tbody>
+    </table>
+
+    <h2>Spaces (L × D × H)</h2>
+    <table>
+      <thead><tr><th>ID</th><th>Type</th><th>Dims</th></tr></thead>
+      <tbody id="spacesTableBody"></tbody>
+    </table>
+
+    <textarea id="exportArea" readonly></textarea>
+  </div>
+
+  <div id="main">
+    <canvas id="viewport"></canvas>
+    <div id="labelsLayer"></div>
+  </div>
+
+  <script src="https://unpkg.com/three@0.149.0/build/three.min.js"></script>
+
+  <script>
+    // ----------------- BOX -----------------
+    const DEFAULT_BOX = { width: 50, height: 25, depth: 200 };
+
+    // Rounded face is (length × height), extruded into depth.
+    // Rotate so that face normal points +X (front = width wall).
+    const FACADE_ROT_Y = -Math.PI / 2;
+
+    // physics
+    const GRAVITY = 2600;
+    const DAMPING = 0.92;
+    const COLLISION_PADDING = 1.5;
+
+    const MAX_FALL_SPEED = 140;
+    const TARGET_SUBSTEP = 0.008;
+
+    // spawn realism
+    const PACKING_FILL_FACTOR = 0.74;
+    const MAX_GLOBAL_SPAWN_RETRIES = 18;
+    const CANDIDATES_PER_SPACE = 280;
+    const LOCAL_JITTER_SCALE = 0.24;
+
+    // weights behavior (horizontal XZ only)
+    const NEG_MIN_SEP_MULT = 1.45;
+    const NEG_EXTRA_SEP_MULT = 2.10;
+    const NEG_HARD_THRESHOLD = -0.70;
+
+    const POS_TARGET_MULT_MIN = 1.05;
+    const POS_TARGET_MULT_MAX = 2.10;
+    const SCORE_POS_K = 0.070;
+    const SCORE_NEG_K = 0.085;
+    const SCORE_PREF_K = 0.015;
+
+    // optional runtime horizontal settling (never in Y)
+    const RELATION_ATTRACTION_ON = true;
+    const REL_ATTRACT_STIFFNESS = 16;
+    const REL_ATTRACT_MAX_ACC = 260;
+    const REL_ATTRACT_MAX_SPEED = 105;
+
+    // visuals
+    const VOID_COLOR = "#e5e5e5";
+
+    // less transparency
+    const SOLID_OPACITY = 0.90;
+    const VOID_OPACITY  = 0.15;
+
+    // if something spills, keep a world floor
+    const WORLD_FLOOR_OFFSET = 60;
+
+    // isometric-ish
+    const ISO_AZIMUTH = Math.PI / 4;                 // 45°
+    const ISO_POLAR   = Math.acos(1 / Math.sqrt(3)); // ~54.7356°
+    const ORTHO_FRUSTUM_FACTOR = 0.95;
+
+    // ---------- OUTPUT QUALITY (ALWAYS, incl. export) ----------
+    // Target max backing-buffer dimension around 2000px without changing camera/export logic.
+    // If your viewport is smaller, this increases internal render resolution. If viewport is larger, it stays at least 1.
+    const RENDER_TARGET_MAX_PX = 2000;
+    const RENDER_PIXEL_RATIO_CAP = 4.0;
+
+    // ---------- LABEL DEPTH / OCCLUSION ----------
+    // Front vs behind (occluded) label opacity.
+    const LABEL_ALPHA_FRONT = 0.95;
+    const LABEL_ALPHA_OCCLUDED = 0.65; // behind text less transparent (raise to ~0.75 if you want even stronger)
+    const LABEL_OCCLUSION_BIAS = 0.6;  // small bias to reduce flicker
+
+    const state = {
+      box: { ...DEFAULT_BOX },
+      types: [],
+      connections: [],
+      spaces: [],
+      running: true,
+      showLabels: true,
+      labelMode: "name",
+      isometric: false,
+      labelShadow: true,
+      voidsFullyTransparent: false
+    };
+
+    const canvas = document.getElementById("viewport");
+    const labelsLayer = document.getElementById("labelsLayer");
+    const typesTableBody = document.getElementById("typesTableBody");
+    const spacesTableBody = document.getElementById("spacesTableBody");
+    const exportArea = document.getElementById("exportArea");
+
+    const boxWInput = document.getElementById("boxW");
+    const boxHInput = document.getElementById("boxH");
+    const boxDInput = document.getElementById("boxD");
+
+    // ----------------- HELPERS -----------------
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+    function canonicalKey(str) { return (str || "").toString().toLowerCase().replace(/[^a-z0-9]/g, ""); }
+
+    function isVoidSpace(s) {
+      const id = (s?.id ?? "").toString().trim();
+      if (/^V_/i.test(id)) return true;
+      const name = (s?.meta?.space_type ?? "").toString();
+      const type = (s?.typeId ?? "").toString();
+      return canonicalKey(name) === "void" || canonicalKey(type) === "void";
+    }
+
+    function splitCsvLine(line) {
+      const out = [];
+      let cur = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && i + 1 < line.length && line[i + 1] === '"') { cur += '"'; i++; }
+          else inQuotes = !inQuotes;
+        } else if (ch === "," && !inQuotes) { out.push(cur.trim()); cur = ""; }
+        else cur += ch;
+      }
+      out.push(cur.trim());
+      return out;
+    }
+
+    function parseCsv(text) {
+      const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+      if (!lines.length) return null;
+      const headers = splitCsvLine(lines[0]);
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const raw = lines[i].trim();
+        if (!raw) continue;
+        const cells = splitCsvLine(raw);
+        while (cells.length < headers.length) cells.push("");
+        rows.push(cells);
+      }
+      return { headers, rows };
+    }
+
+    function hash01(str) {
+      const s = (str || "").toString();
+      let h = 2166136261;
+      for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return ((h >>> 0) % 1000000) / 1000000;
+    }
+
+    // ----------------- FAMILY COLORS (blue/orange/gray) -----------------
+    const FAMILY_BASE = {
+      blue:   ["#CFE7FF","#C3E1FF","#B6DAFF","#AAD4FF","#9ECEFF","#92C8FF","#86C2FF"],
+      orange: ["#FFE2CF","#FFD9BF","#FFD0AF","#FFC79F","#FFBE8F","#FFB57F","#FFAC6F"],
+      gray:   ["#F1F4F7","#EBEFF3","#E5EAF0","#DFE5EC","#D9E0E8","#D3DBE4","#CDD6DF"]
+    };
+
+    function hueGroupForFamily(famKey) {
+      const r = hash01("fam|" + famKey);
+      if (r < 0.40) return "blue";
+      if (r < 0.80) return "orange";
+      return "gray";
+    }
+
+    function varyFromBase(baseHex, salt, hueGroup) {
+      const c = new THREE.Color(baseHex);
+      const hsl = { h: 0, s: 0, l: 0 };
+      c.getHSL(hsl);
+
+      const r1 = hash01(salt + "|1");
+      const r2 = hash01(salt + "|2");
+      const r3 = hash01(salt + "|3");
+
+      const hueJ = (hueGroup === "orange")
+        ? (r1 - 0.5) * 0.018
+        : (hueGroup === "blue")
+          ? (r1 - 0.5) * 0.028
+          : 0.0;
+
+      const sat = (hueGroup === "gray")
+        ? clamp(0.06 + (r2 - 0.5) * 0.08, 0.03, 0.14)
+        : clamp(0.36 + (r2 - 0.5) * 0.26, 0.22, 0.62);
+
+      const lig = clamp(0.62 + (r3 - 0.5) * 0.40, 0.42, 0.90);
+
+      const h = (hsl.h + hueJ + 1) % 1;
+      c.setHSL(h, sat, lig);
+      return "#" + c.getHexString();
+    }
+
+    function assignFamilyShadedColors() {
+      const famMap = new Map();
+
+      const famKeys = new Set();
+      for (const s of state.spaces) {
+        if (isVoidSpace(s)) continue;
+        const famRaw = (s.meta?.family || "").toString().trim();
+        famKeys.add(canonicalKey(famRaw || "unknown"));
+      }
+
+      const ordered = Array.from(famKeys).sort();
+      for (const fk of ordered) {
+        const hg = hueGroupForFamily(fk);
+        const pal = FAMILY_BASE[hg];
+        const idx = Math.floor(hash01("base|" + fk) * pal.length) % pal.length;
+        famMap.set(fk, { hueGroup: hg, base: pal[idx] });
+      }
+
+      for (const t of state.types) {
+        const keyT = canonicalKey(t.id);
+        if (keyT === "void" || canonicalKey(t.name) === "void") { t.color = VOID_COLOR; continue; }
+        const sample = state.spaces.find(s => s.typeId === t.id && !isVoidSpace(s));
+        const fk = canonicalKey((sample?.meta?.family || "unknown").toString());
+        t.color = famMap.get(fk)?.base || "#CFE7FF";
+      }
+
+      for (const s of state.spaces) {
+        if (isVoidSpace(s)) { s.color = VOID_COLOR; continue; }
+
+        const fk = canonicalKey((s.meta?.family || "unknown").toString());
+        const info = famMap.get(fk) || { hueGroup: "blue", base: "#CFE7FF" };
+
+        const salt = [
+          s.meta?.code || "",
+          s.meta?.space_type || "",
+          s.id || ""
+        ].join("|");
+
+        s.color = varyFromBase(info.base, salt, info.hueGroup);
+      }
+    }
+
+    function roundedRectShape(w, h, r) {
+      const hw = w * 0.5;
+      const hh = h * 0.5;
+      r = clamp(r, 0, Math.min(hw, hh));
+
+      const shape = new THREE.Shape();
+      shape.moveTo(-hw + r, -hh);
+      shape.lineTo(hw - r, -hh);
+      shape.absarc(hw - r, -hh + r, r, -Math.PI / 2, 0, false);
+      shape.lineTo(hw, hh - r);
+      shape.absarc(hw - r, hh - r, r, 0, Math.PI / 2, false);
+      shape.lineTo(-hw + r, hh);
+      shape.absarc(-hw + r, hh - r, r, Math.PI / 2, Math.PI, false);
+      shape.lineTo(-hw, -hh + r);
+      shape.absarc(-hw + r, -hh + r, r, Math.PI, Math.PI * 1.5, false);
+      return shape;
+    }
+
+    function getLocalHalfExtents(s) {
+      const d = s.dim;
+      if (!d) return { x: 1, y: 1, z: 1 };
+      return { x: d.length * 0.5, y: d.height * 0.5, z: d.depth * 0.5 };
+    }
+
+    function getWorldHalfExtents(s, padded = true) {
+      const he = getLocalHalfExtents(s);
+      const out = { x: he.z, y: he.y, z: he.x };
+      if (padded) { out.x += COLLISION_PADDING; out.y += COLLISION_PADDING; out.z += COLLISION_PADDING; }
+      return out;
+    }
+
+    function getSpaceColor(s) { return isVoidSpace(s) ? VOID_COLOR : (s.color || "#CFE7FF"); }
+
+    function getWorldFloorY() { return -state.box.height * 0.5 - WORLD_FLOOR_OFFSET; }
+
+    function spaceVolume(s) {
+      const d = s.dim;
+      if (!d) return 0;
+      return Math.max(0, d.length * d.depth * d.height);
+    }
+    function boxVolume() { return Math.max(0, state.box.width * state.box.height * state.box.depth); }
+
+    // ----------------- RELATIONSHIP WEIGHTS -----------------
+    function getConnectionWeight(typeA, typeB) {
+      let w = 0;
+      for (const c of state.connections) {
+        if ((c.from === typeA && c.to === typeB) || (c.from === typeB && c.to === typeA)) {
+          if (Math.abs(c.value) > Math.abs(w)) w = c.value;
+        }
+      }
+      return w;
+    }
+
+    // ----------------- BOX APPLY -----------------
+    function applyBoxFromUI() {
+      const w = parseFloat(boxWInput.value);
+      const h = parseFloat(boxHInput.value);
+      const d = parseFloat(boxDInput.value);
+      if (!isFinite(w) || !isFinite(h) || !isFinite(d) || w <= 0 || h <= 0 || d <= 0) {
+        exportArea.value = "Box dimensions must be positive numbers.";
+        return false;
+      }
+      state.box.width = w;
+      state.box.height = h;
+      state.box.depth = d;
+      updateBoxMeshSize();
+      clampToBoundsAll();
+      updateMeshTransforms();
+      updateLabels();
+      return true;
+    }
+
+    // ----------------- SPILL DECISION -----------------
+    function computeSpillSet() {
+      const { width, height, depth } = state.box;
+
+      const insideCandidates = [];
+      const mustSpill = new Set();
+
+      for (const s of state.spaces) {
+        const he = getWorldHalfExtents(s, false);
+        const needW = he.x * 2, needH = he.y * 2, needD = he.z * 2;
+        const tooBig = (needW > width + 1e-6) || (needH > height + 1e-6) || (needD > depth + 1e-6);
+        if (tooBig) mustSpill.add(s.id);
+        else insideCandidates.push(s);
+      }
+
+      const Vbox = boxVolume();
+      const Vmax = Vbox * PACKING_FILL_FACTOR;
+
+      let Vsum = 0;
+      for (const s of insideCandidates) Vsum += spaceVolume(s);
+
+      if (Vsum <= Vmax + 1e-6) return { mustSpill, spilledForVolume: new Set(), Vsum, Vmax };
+
+      const bySmallest = insideCandidates.slice().sort((a, b) => spaceVolume(a) - spaceVolume(b));
+      const spilledForVolume = new Set();
+
+      for (const s of bySmallest) {
+        if (Vsum <= Vmax + 1e-6) break;
+        Vsum -= spaceVolume(s);
+        spilledForVolume.add(s.id);
+      }
+
+      return { mustSpill, spilledForVolume, Vsum, Vmax };
+    }
+
+    function markAllowOutsideAndWarn(extraSpillIds = null) {
+      const { mustSpill, spilledForVolume, Vmax } = computeSpillSet();
+
+      for (const s of state.spaces) {
+        s.allowOutside = mustSpill.has(s.id) || spilledForVolume.has(s.id) || (extraSpillIds ? extraSpillIds.has(s.id) : false);
+      }
+
+      const tooBigList = Array.from(mustSpill);
+      const tooManyList = Array.from(spilledForVolume);
+
+      const lines = [];
+      if (tooBigList.length) {
+        lines.push(
+          "Warning: some spaces are larger than the box on at least one axis.",
+          "Those spaces are allowed to spill because they cannot fit.",
+          ""
+        );
+        for (const id of tooBigList.slice(0, 10)) lines.push(`- too big: ${id}`);
+        if (tooBigList.length > 10) lines.push(`...and ${tooBigList.length - 10} more`);
+        lines.push("");
+      }
+
+      if (tooManyList.length) {
+        lines.push(
+          "Warning: program is too dense to pack inside the box without overlaps.",
+          `Inside-packable volume cap ≈ ${Vmax.toFixed(2)} (boxVolume × ${PACKING_FILL_FACTOR}).`,
+          "Smallest spaces are allowed to spill first:",
+          ""
+        );
+        for (const id of tooManyList.slice(0, 10)) lines.push(`- spilled (overfill): ${id}`);
+        if (tooManyList.length > 10) lines.push(`...and ${tooManyList.length - 10} more`);
+        lines.push("");
+      }
+
+      if (lines.length) {
+        exportArea.value = lines.join("\n");
+        console.warn(exportArea.value);
+      }
+    }
+
+    // ----------------- PROGRAM CSV -----------------
+    function computeRadiusXZFromDim(dim) {
+      const hx = dim.depth * 0.5;
+      const hz = dim.length * 0.5;
+      return Math.max(1, Math.sqrt(hx*hx + hz*hz));
+    }
+
+    function loadProgramFromCsv(text) {
+      const parsed = parseCsv(text);
+      if (!parsed) return;
+      const { headers, rows } = parsed;
+
+      const idxMap = {};
+      headers.forEach((h, i) => { idxMap[canonicalKey(h)] = i; });
+
+      const idxCode      = idxMap["code"];
+      const idxSpaceType = idxMap["spacetype"];
+      const idxFamily    = idxMap["family"];
+      const idxCount     = idxMap["count"];
+      const idxGroup     = (idxMap["inseparablegroup"] ?? idxMap["inseparable"] ?? idxMap["groupid"] ?? idxMap["group"] ?? idxMap["cluster"]);
+
+      const idxLen = (idxMap["length"] ?? idxMap["lengthm"] ?? idxMap["len"] ?? idxMap["l"]);
+      const idxDep = (idxMap["depth"]  ?? idxMap["depthm"]  ?? idxMap["dep"] ?? idxMap["d"]);
+      const idxHei = (idxMap["height"] ?? idxMap["heightm"] ?? idxMap["h"] ?? idxMap["ceilingheightm"] ?? idxMap["chm"] ?? idxMap["ch"]);
+
+      const idxPrefX = (idxMap["preferredx"] ?? idxMap["prefx"] ?? idxMap["px"] ?? idxMap["posx"] ?? idxMap["positionx"]);
+      const idxPrefY = (idxMap["preferredy"] ?? idxMap["prefy"] ?? idxMap["py"] ?? idxMap["posy"] ?? idxMap["positiony"]);
+      const idxPrefZ = (idxMap["preferredz"] ?? idxMap["prefz"] ?? idxMap["pz"] ?? idxMap["posz"] ?? idxMap["positionz"]);
+
+      state.types = [];
+      state.spaces = [];
+
+      const typeByCode = new Map();
+      let typeCounter = 0;
+
+      function getOrCreateType(code, spaceTypeLabel) {
+        const id = (code && code.toString().trim()) || `T${typeCounter++}`;
+        if (typeByCode.has(id)) return typeByCode.get(id);
+        const label = spaceTypeLabel || id;
+        const t = { id, name: label, color: "#CFE7FF" };
+        state.types.push(t);
+        typeByCode.set(id, id);
+        typeCounter++;
+        return id;
+      }
+
+      rows.forEach((cells, rowIndex) => {
+        const codeVal = (idxCode != null ? cells[idxCode] : "") || `S${rowIndex + 1}`;
+        const spaceTypeLabel = idxSpaceType != null ? cells[idxSpaceType] : codeVal;
+        const family = idxFamily != null ? (cells[idxFamily] || "") : "";
+        const count = idxCount != null ? (parseInt(cells[idxCount] || "1", 10) || 1) : 1;
+
+        const groupRaw = idxGroup != null ? cells[idxGroup] : "";
+        const groupId = groupRaw && groupRaw.toString().trim() ? groupRaw.toString().trim() : null;
+
+        const L = idxLen != null ? parseFloat(cells[idxLen] || "") : NaN;
+        const D = idxDep != null ? parseFloat(cells[idxDep] || "") : NaN;
+        const H = idxHei != null ? parseFloat(cells[idxHei] || "") : NaN;
+
+        const length = (isFinite(L) && L > 0) ? L : 10;
+        const depth  = (isFinite(D) && D > 0) ? D : 10;
+        const height = (isFinite(H) && H > 0) ? H : 3;
+
+        const pxRaw = idxPrefX != null ? cells[idxPrefX] : "";
+        const pyRaw = idxPrefY != null ? cells[idxPrefY] : "";
+        const pzRaw = idxPrefZ != null ? cells[idxPrefZ] : "";
+        const pxVal = parseFloat(pxRaw);
+        const pyVal = parseFloat(pyRaw);
+        const pzVal = parseFloat(pzRaw);
+        const hasPref =
+          (!isNaN(pxVal) && pxRaw !== "") ||
+          (!isNaN(pyVal) && pyRaw !== "") ||
+          (!isNaN(pzVal) && pzRaw !== "");
+        const preferred = hasPref ? {
+          x: !isNaN(pxVal) ? pxVal : 0,
+          y: !isNaN(pyVal) ? pyVal : 0,
+          z: !isNaN(pzVal) ? pzVal : 0
+        } : null;
+
+        const typeId = getOrCreateType(codeVal, spaceTypeLabel);
+        const cornerFront = clamp(0.14 * Math.min(length, height), 0, 0.35 * Math.min(length, height));
+
+        for (let k = 0; k < count; k++) {
+          const id = (count > 1) ? `${codeVal}_${k + 1}` : codeVal;
+          const dim = { length, depth, height, cornerFront };
+          const radiusXZ = computeRadiusXZFromDim(dim);
+
+          state.spaces.push({
+            id,
+            typeId,
+            radiusXZ,
+            dim,
+            position: { x: 0, y: 0, z: 0 },
+            velocity: { x: 0, y: 0, z: 0 },
+            pinned: false,
+            groupId,
+            preferred,
+            allowOutside: false,
+            color: null,
+            meta: { code: codeVal, space_type: spaceTypeLabel, family }
+          });
+        }
+      });
+
+      assignFamilyShadedColors();
+      renderTypes();
+      renderSpaces();
+
+      markAllowOutsideAndWarn(null);
+      spawnWeightedPlacement(true);
+      rebuildMeshes();
+    }
+
+    // ----------------- RELATIONSHIP CSV -----------------
+    function loadRelationFromCsv(text) {
+      const parsed = parseCsv(text);
+      if (!parsed) return;
+      const { headers, rows } = parsed;
+      if (headers.length < 2) return;
+
+      const typeMap = new Map();
+      for (const t of state.types) {
+        typeMap.set(canonicalKey(t.id), t.id);
+        typeMap.set(canonicalKey(t.name), t.id);
+      }
+
+      const colTypeIds = [];
+      for (let j = 1; j < headers.length; j++) {
+        const key = canonicalKey(headers[j]);
+        colTypeIds[j] = typeMap.get(key) || null;
+      }
+
+      const newConnections = [];
+      const maxAbs = 5;
+
+      rows.forEach(cells => {
+        if (cells.length < 2) return;
+        const rowTypeId = typeMap.get(canonicalKey(cells[0]));
+        if (!rowTypeId) return;
+
+        for (let j = 1; j < cells.length; j++) {
+          const colTypeId = colTypeIds[j];
+          if (!colTypeId) continue;
+          const raw = cells[j];
+          if (!raw) continue;
+
+          const v = parseFloat(raw);
+          if (!isFinite(v) || v === 0) continue;
+
+          const clampedV = Math.max(-maxAbs, Math.min(maxAbs, v));
+          newConnections.push({ from: rowTypeId, to: colTypeId, value: clampedV / maxAbs });
+        }
+      });
+
+      state.connections = newConnections;
+
+      if (state.spaces.length) {
+        markAllowOutsideAndWarn(null);
+        spawnWeightedPlacement(true);
+        rebuildMeshes();
+      }
+    }
+
+    // ----------------- SPAWN / COLLISION HELPERS -----------------
+    function connectivityScoreForSpace(s) {
+      let score = 0;
+      for (const o of state.spaces) {
+        if (o === s) continue;
+        score += Math.abs(getConnectionWeight(s.typeId, o.typeId));
+      }
+      if (s.groupId) score += 2.0;
+      return score;
+    }
+
+    function mapPreferredToBox(s) {
+      if (!s.preferred) return null;
+      const { width, height, depth } = state.box;
+      const halfW = width / 2, halfH = height / 2, halfD = depth / 2;
+
+      function mapPref(v, half) {
+        if (!isFinite(v)) return 0;
+        if (Math.abs(v) <= 1.5) return clamp(v, -1, 1) * (half * 0.85);
+        return clamp(v, -half * 0.85, half * 0.85);
+      }
+
+      return { x: mapPref(s.preferred.x, halfW), y: mapPref(s.preferred.y, halfH), z: mapPref(s.preferred.z, halfD) };
+    }
+
+    function clampCandidateToBounds(space, candidate) {
+      const { width, height, depth } = state.box;
+      const halfW = width / 2, halfH = height / 2, halfD = depth / 2;
+      const he = getWorldHalfExtents(space, false);
+      const floorY = getWorldFloorY() + he.y;
+
+      if (space.allowOutside) {
+        return { x: candidate.x, y: Math.max(candidate.y, floorY), z: candidate.z };
+      }
+
+      const minX = -halfW + he.x, maxX = halfW - he.x;
+      const minY = -halfH + he.y, maxY = halfH - he.y;
+      const minZ = -halfD + he.z, maxZ = halfD - he.z;
+
+      return {
+        x: (minX <= maxX) ? clamp(candidate.x, minX, maxX) : 0,
+        y: (minY <= maxY) ? clamp(candidate.y, Math.max(minY, floorY), maxY) : Math.max(0, floorY),
+        z: (minZ <= maxZ) ? clamp(candidate.z, minZ, maxZ) : 0
+      };
+    }
+
+    function aabbOverlap3D(a, b) {
+      const ha = getWorldHalfExtents(a, true);
+      const hb = getWorldHalfExtents(b, true);
+
+      const dx = b.position.x - a.position.x;
+      const dy = b.position.y - a.position.y;
+      const dz = b.position.z - a.position.z;
+
+      const ox = (ha.x + hb.x) - Math.abs(dx);
+      const oy = (ha.y + hb.y) - Math.abs(dy);
+      const oz = (ha.z + hb.z) - Math.abs(dz);
+
+      return { dx, dy, dz, ox, oy, oz, intersect: (ox > 0 && oy > 0 && oz > 0) };
+    }
+
+    function hasAnyIntersections() {
+      const n = state.spaces.length;
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          if (aabbOverlap3D(state.spaces[i], state.spaces[j]).intersect) return true;
+        }
+      }
+      return false;
+    }
+
+    function clampToBoundsAll() {
+      const { width, height, depth } = state.box;
+      const halfW = width / 2, halfH = height / 2, halfD = depth / 2;
+
+      for (const s of state.spaces) {
+        const he = getWorldHalfExtents(s, false);
+
+        const floorY = getWorldFloorY() + he.y;
+        if (s.position.y < floorY) {
+          s.position.y = floorY;
+          if (s.velocity.y < 0) s.velocity.y = 0;
+        }
+
+        if (s.allowOutside) continue;
+
+        const minX = -halfW + he.x, maxX = halfW - he.x;
+        const minY = -halfH + he.y, maxY = halfH - he.y;
+        const minZ = -halfD + he.z, maxZ = halfD - he.z;
+
+        if (minX <= maxX) {
+          if (s.position.x < minX) { s.position.x = minX; s.velocity.x = 0; }
+          if (s.position.x > maxX) { s.position.x = maxX; s.velocity.x = 0; }
+        }
+        if (minY <= maxY) {
+          if (s.position.y < minY) { s.position.y = Math.max(minY, floorY); if (s.velocity.y < 0) s.velocity.y = 0; }
+          if (s.position.y > maxY) { s.position.y = maxY; if (s.velocity.y > 0) s.velocity.y = 0; }
+        }
+        if (minZ <= maxZ) {
+          if (s.position.z < minZ) { s.position.z = minZ; s.velocity.z = 0; }
+          if (s.position.z > maxZ) { s.position.z = maxZ; s.velocity.z = 0; }
+        }
+      }
+    }
+
+    function resolveCollisionsAABB(iterations = 18) {
+      const spaces = state.spaces;
+      const n = spaces.length;
+      if (!n) return;
+
+      for (let it = 0; it < iterations; it++) {
+        for (let i = 0; i < n; i++) {
+          const si = spaces[i];
+          for (let j = i + 1; j < n; j++) {
+            const sj = spaces[j];
+
+            const o = aabbOverlap3D(si, sj);
+            if (!o.intersect) continue;
+
+            let axis = "x";
+            let overlap = o.ox;
+            if (o.oy < overlap) { overlap = o.oy; axis = "y"; }
+            if (o.oz < overlap) { overlap = o.oz; axis = "z"; }
+            if (overlap <= 0) continue;
+
+            const moveI = si.pinned ? 0.0 : 0.5;
+            const moveJ = sj.pinned ? 0.0 : 0.5;
+
+            const jitter = (Math.random() - 0.5) * 0.002;
+
+            if (axis === "x") {
+              const sign = (o.dx >= 0) ? 1 : -1;
+              si.position.x -= sign * (overlap + jitter) * moveI;
+              sj.position.x += sign * (overlap + jitter) * moveJ;
+              if (!si.pinned) si.velocity.x = 0;
+              if (!sj.pinned) sj.velocity.x = 0;
+            } else if (axis === "y") {
+              const sign = (o.dy >= 0) ? 1 : -1;
+              si.position.y -= sign * (overlap + jitter) * moveI;
+              sj.position.y += sign * (overlap + jitter) * moveJ;
+              if (!si.pinned) si.velocity.y = 0;
+              if (!sj.pinned) sj.velocity.y = 0;
+            } else {
+              const sign = (o.dz >= 0) ? 1 : -1;
+              si.position.z -= sign * (overlap + jitter) * moveI;
+              sj.position.z += sign * (overlap + jitter) * moveJ;
+              if (!si.pinned) si.velocity.z = 0;
+              if (!sj.pinned) sj.velocity.z = 0;
+            }
+          }
+        }
+        clampToBoundsAll();
+      }
+    }
+
+    // ----------------- SPAWN -----------------
+    function minDistXZ(a, b) {
+      const ra = a.radiusXZ || 1;
+      const rb = b.radiusXZ || 1;
+      return ra + rb;
+    }
+
+    function desiredDistForPositive(minDist, w) {
+      const t = clamp(1 - w, 0, 1);
+      const mult = POS_TARGET_MULT_MIN + (POS_TARGET_MULT_MAX - POS_TARGET_MULT_MIN) * t;
+      return minDist * mult;
+    }
+
+    function violatesHardNegative(space, candidate, placed) {
+      for (const p of placed) {
+        const w = getConnectionWeight(space.typeId, p.typeId);
+        if (w > NEG_HARD_THRESHOLD) continue;
+
+        const required = minDistXZ(space, p) * (NEG_MIN_SEP_MULT + NEG_EXTRA_SEP_MULT * (-w));
+        const dx = candidate.x - p.position.x;
+        const dz = candidate.z - p.position.z;
+        const dist = Math.sqrt(dx*dx + dz*dz);
+
+        if (dist < required) return true;
+      }
+      return false;
+    }
+
+    function scoreCandidateXZ(s, c, placed) {
+      let score = 0;
+
+      const pref = mapPreferredToBox(s);
+      if (pref) {
+        const dx = c.x - pref.x, dy = c.y - pref.y, dz = c.z - pref.z;
+        score += -SCORE_PREF_K * Math.sqrt(dx*dx + dy*dy + dz*dz);
+      }
+
+      for (const p of placed) {
+        const w = getConnectionWeight(s.typeId, p.typeId);
+        if (w === 0) continue;
+
+        const dx = c.x - p.position.x;
+        const dz = c.z - p.position.z;
+        const d = Math.sqrt(dx*dx + dz*dz) + 1e-6;
+
+        const md = minDistXZ(s, p);
+
+        if (w > 0) {
+          const desired = desiredDistForPositive(md, w);
+          score += -SCORE_POS_K * w * Math.abs(d - desired);
+        } else {
+          score += SCORE_NEG_K * (-w) * d;
+
+          const softMin = md * (NEG_MIN_SEP_MULT * 0.85);
+          if (d < softMin) score -= 1200 * (-w) * (softMin - d);
+        }
+      }
+
+      return score;
+    }
+
+    function makeBaseTargetInsideXZ(s, placed) {
+      const { width, height, depth } = state.box;
+      const halfW = width / 2, halfH = height / 2, halfD = depth / 2;
+
+      const he = getWorldHalfExtents(s, false);
+      const minX = -halfW + he.x, maxX = halfW - he.x;
+      const minY = -halfH + he.y, maxY = halfH - he.y;
+      const minZ = -halfD + he.z, maxZ = halfD - he.z;
+
+      function randIn(min, max) { return min + Math.random() * (max - min); }
+
+      let t = { x: randIn(minX, maxX), y: randIn(minY, maxY), z: randIn(minZ, maxZ) };
+
+      let sumPos = 0, cx = 0, cz = 0;
+      let sumNeg = 0, rx = 0, rz = 0;
+
+      for (const p of placed) {
+        const w = getConnectionWeight(s.typeId, p.typeId);
+        if (w > 0) {
+          sumPos += w;
+          cx += p.position.x * w;
+          cz += p.position.z * w;
+        } else if (w < 0) {
+          const ww = -w;
+          sumNeg += ww;
+          const dx = t.x - p.position.x;
+          const dz = t.z - p.position.z;
+          const len = Math.sqrt(dx*dx + dz*dz) + 1e-6;
+          rx += (dx / len) * ww;
+          rz += (dz / len) * ww;
+        }
+      }
+
+      if (sumPos > 1e-6) {
+        const pcx = cx / sumPos, pcz = cz / sumPos;
+        const pull = 0.26;
+        t.x = t.x * (1 - pull) + pcx * pull;
+        t.z = t.z * (1 - pull) + pcz * pull;
+      }
+
+      if (sumNeg > 1e-6) {
+        const rlen = Math.sqrt(rx*rx + rz*rz) + 1e-6;
+        const push = clamp(14 * sumNeg, 0, 45);
+        t.x += (rx / rlen) * push;
+        t.z += (rz / rlen) * push;
+      }
+
+      t.y = maxY - (Math.random() * 6 + 2);
+      return clampCandidateToBounds(s, t);
+    }
+
+    function spawnWeightedPlacement(ensureSeparated = true) {
+      if (!state.spaces.length) return false;
+
+      const baseAllowOutside = new Map(state.spaces.map(s => [s.id, !!s.allowOutside]));
+      markAllowOutsideAndWarn(null);
+
+      const { width, height, depth } = state.box;
+      const halfW = width / 2, halfH = height / 2, halfD = depth / 2;
+
+      const insideAll = () => state.spaces.filter(s => !s.allowOutside);
+      const spillAll  = () => state.spaces.filter(s =>  s.allowOutside);
+
+      function hardness(s) {
+        const he = getWorldHalfExtents(s, false);
+        const size = (he.x + he.y + he.z);
+        return size + 0.85 * connectivityScoreForSpace(s);
+      }
+
+      function randIn(min, max) { return min + Math.random() * (max - min); }
+
+      function resetKinematics() {
+        for (const s of state.spaces) {
+          s.velocity.x = 0; s.velocity.y = 0; s.velocity.z = 0;
+          s.pinned = false;
+        }
+      }
+
+      function placeSpillLane(placed) {
+        const spill = spillAll();
+        let spillX = halfW + 18;
+
+        for (const s of spill) {
+          const he = getWorldHalfExtents(s, false);
+          spillX += he.x;
+          s.position.x = spillX;
+          s.position.y = halfH - 2;
+          s.position.z = randIn(-halfD * 0.85, halfD * 0.85);
+          placed.push(s);
+          spillX += he.x + 14;
+        }
+        return spillX;
+      }
+
+      function resolveAllOverlapsHard() {
+        clampToBoundsAll();
+        for (let k = 0; k < 260; k++) {
+          if (!hasAnyIntersections()) break;
+          resolveCollisionsAABB(22);
+        }
+        return !hasAnyIntersections();
+      }
+
+      function trySpawn(passName, strictNoIntersect, hardNegOnly) {
+        const inside = insideAll().slice().sort((a, b) => hardness(b) - hardness(a));
+
+        if (!inside.length) {
+          resetKinematics();
+          exportArea.value = `Spawn pass: ${passName} (all spilled by constraints).`;
+          return true;
+        }
+
+        for (let globalTry = 0; globalTry < MAX_GLOBAL_SPAWN_RETRIES; globalTry++) {
+          for (const s of inside) { s.position.x = 0; s.position.y = 0; s.position.z = 0; }
+          resetKinematics();
+
+          const placed = [];
+          let failed = false;
+
+          for (const s of inside) {
+            const he = getWorldHalfExtents(s, false);
+            const minX = -halfW + he.x, maxX = halfW - he.x;
+            const minY = -halfH + he.y, maxY = halfH - he.y;
+            const minZ = -halfD + he.z, maxZ = halfD - he.z;
+            if (!(minX <= maxX && minY <= maxY && minZ <= maxZ)) { failed = true; break; }
+
+            const base = makeBaseTargetInsideXZ(s, placed);
+
+            const rX = Math.max(6, width * LOCAL_JITTER_SCALE);
+            const rZ = Math.max(6, depth * LOCAL_JITTER_SCALE);
+            const rY = Math.max(2, height * 0.10);
+
+            let best = null;
+            let bestScore = -Infinity;
+
+            for (let k = 0; k < CANDIDATES_PER_SPACE; k++) {
+              const uniform = (k % 5 === 0);
+              const cand = uniform ? {
+                x: randIn(minX, maxX),
+                y: randIn(minY, maxY),
+                z: randIn(minZ, maxZ)
+              } : {
+                x: base.x + (Math.random() - 0.5) * 2 * rX,
+                y: base.y + (Math.random() - 0.5) * 2 * rY,
+                z: base.z + (Math.random() - 0.5) * 2 * rZ
+              };
+
+              const c = clampCandidateToBounds(s, cand);
+
+              if (hardNegOnly) {
+                if (violatesHardNegative(s, c, placed)) continue;
+              }
+
+              if (strictNoIntersect && ensureSeparated) {
+                s.position.x = c.x; s.position.y = c.y; s.position.z = c.z;
+                let intersects = false;
+                for (const p of placed) {
+                  if (aabbOverlap3D(s, p).intersect) { intersects = true; break; }
+                }
+                if (intersects) continue;
+              }
+
+              const sc = scoreCandidateXZ(s, c, placed);
+              if (sc > bestScore) { bestScore = sc; best = c; }
+            }
+
+            if (!best) { failed = true; break; }
+
+            s.position.x = best.x; s.position.y = best.y; s.position.z = best.z;
+            placed.push(s);
+          }
+
+          if (failed) continue;
+
+          placeSpillLane(placed);
+          if (!resolveAllOverlapsHard()) continue;
+
+          exportArea.value = `Spawn pass: ${passName} (try ${globalTry + 1}/${MAX_GLOBAL_SPAWN_RETRIES}).`;
+          return true;
+        }
+
+        return false;
+      }
+
+      if (trySpawn("STRICT", true, true)) return true;
+      if (trySpawn("RELAXED", false, true)) return true;
+      if (trySpawn("ULTRA", false, false)) return true;
+
+      const extraSpill = new Set();
+      const candidates = state.spaces
+        .filter(s => !baseAllowOutside.get(s.id))
+        .slice()
+        .sort((a, b) => spaceVolume(a) - spaceVolume(b));
+
+      for (let k = 0; k < candidates.length; k++) {
+        extraSpill.add(candidates[k].id);
+        markAllowOutsideAndWarn(extraSpill);
+
+        if (trySpawn(`RELAXED+SPILL(${extraSpill.size})`, false, true)) {
+          exportArea.value += `\nExtra spill used: ${extraSpill.size} spaces (to satisfy constraints).`;
+          return true;
+        }
+      }
+
+      exportArea.value = "Spawn failed completely. Constraints are inconsistent with box and/or extreme negatives. Keeping current layout.";
+      return false;
+    }
+
+    // ----------------- OPTIONAL RUNTIME ATTRACTION (XZ ONLY) -----------------
+    function applyHorizontalRelationshipAttraction(dt) {
+      if (!RELATION_ATTRACTION_ON) return;
+      const n = state.spaces.length;
+      if (n < 2) return;
+
+      for (let i = 0; i < n; i++) {
+        const a = state.spaces[i];
+        for (let j = i + 1; j < n; j++) {
+          const b = state.spaces[j];
+          const w = getConnectionWeight(a.typeId, b.typeId);
+          if (w <= 0) continue;
+          if (a.pinned && b.pinned) continue;
+
+          const dx = b.position.x - a.position.x;
+          const dz = b.position.z - a.position.z;
+          const dist = Math.sqrt(dx*dx + dz*dz) + 1e-6;
+
+          const md = minDistXZ(a, b);
+          const desired = desiredDistForPositive(md, w);
+
+          if (dist <= desired) continue;
+
+          const spring = REL_ATTRACT_STIFFNESS * w;
+          let pull = spring * (dist - desired);
+          pull = clamp(pull, 0, REL_ATTRACT_MAX_ACC);
+
+          const ax = (dx / dist) * pull;
+          const az = (dz / dist) * pull;
+
+          if (!a.pinned) { a.velocity.x += ax * dt; a.velocity.z += az * dt; }
+          if (!b.pinned) { b.velocity.x -= ax * dt; b.velocity.z -= az * dt; }
+        }
+      }
+
+      for (const s of state.spaces) {
+        if (s.pinned) continue;
+        s.velocity.x = clamp(s.velocity.x, -REL_ATTRACT_MAX_SPEED, REL_ATTRACT_MAX_SPEED);
+        s.velocity.z = clamp(s.velocity.z, -REL_ATTRACT_MAX_SPEED, REL_ATTRACT_MAX_SPEED);
+      }
+    }
+
+    // ----------------- THREE.JS -----------------
+    let renderer, scene;
+    let cameraPerspective, cameraOrtho, activeCamera;
+
+    let boxMesh, blocksGroup;
+    const blockMeshes = new Map();
+    const labelElements = new Map();
+
+    // Separate raycaster for label occlusion so it never interferes with dragging.
+    const labelRaycaster = new THREE.Raycaster();
+    let occlusionTargets = []; // only solid (non-void) meshes
+
+    let orbit = {
+      azimuth: 0,
+      polar: Math.PI / 2,
+      radius: 520,
+      target: new THREE.Vector3(0, 0, 0),
+      dragging: false,
+      lastX: 0,
+      lastY: 0
+    };
+
+    function updateActiveCameraRef() { activeCamera = state.isometric ? cameraOrtho : cameraPerspective; }
+
+    function updateOrthoFrustumForDims(w, h) {
+      if (!cameraOrtho) return;
+      const aspect = w / h;
+      const frustumH = Math.max(10, orbit.radius * ORTHO_FRUSTUM_FACTOR);
+      const halfH = frustumH * 0.5;
+      const halfW = halfH * aspect;
+
+      cameraOrtho.left = -halfW;
+      cameraOrtho.right = halfW;
+      cameraOrtho.top = halfH;
+      cameraOrtho.bottom = -halfH;
+      cameraOrtho.near = 0.1;
+      cameraOrtho.far = 6000;
+      cameraOrtho.updateProjectionMatrix();
+    }
+
+    function updateCameraFromOrbit() {
+      updateActiveCameraRef();
+      const { azimuth, polar, radius, target } = orbit;
+      const sinP = Math.sin(polar);
+      const x = radius * sinP * Math.cos(azimuth);
+      const y = radius * Math.cos(polar);
+      const z = radius * sinP * Math.sin(azimuth);
+
+      activeCamera.position.set(x + target.x, y + target.y, z + target.z);
+      activeCamera.lookAt(target);
+    }
+
+    function applyLabelShadowState() { labelsLayer.classList.toggle("noLabelShadow", !state.labelShadow); }
+
+    function initThree() {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        preserveDrawingBuffer: true
+      });
+      renderer.sortObjects = true;
+
+      if ("outputColorSpace" in renderer) {
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+      } else {
+        renderer.outputEncoding = THREE.sRGBEncoding;
+      }
+
+      if (THREE.ColorManagement) {
+        if ("legacyMode" in THREE.ColorManagement) THREE.ColorManagement.legacyMode = false;
+        if ("enabled" in THREE.ColorManagement) THREE.ColorManagement.enabled = true;
+      }
+
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.05;
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xffffff);
+
+      const width = canvas.clientWidth || (window.innerWidth - 360);
+      const height = window.innerHeight;
+
+      cameraPerspective = new THREE.PerspectiveCamera(45, width / height, 0.1, 6000);
+      cameraOrtho = new THREE.OrthographicCamera(-100, 100, 100, -100, 0.1, 6000);
+      updateOrthoFrustumForDims(width, height);
+
+      updateActiveCameraRef();
+      updateCameraFromOrbit();
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.42));
+      scene.add(new THREE.HemisphereLight(0xffffff, 0xeeeeee, 0.30));
+      const dir = new THREE.DirectionalLight(0xffffff, 0.55);
+      dir.position.set(260, 420, 180);
+      scene.add(dir);
+
+      // dashed box edges (gray, visually "thinner" via lower contrast + opacity)
+      const boxMat = new THREE.LineDashedMaterial({
+        color: 0x9fa4aa,      // gray
+        dashSize: 2.4,        // will be overridden per box size in updateBoxMeshSize()
+        gapSize:  1.1,        // will be overridden per box size in updateBoxMeshSize()
+        transparent: true,
+        opacity: 0.78,
+        depthTest: true,
+        depthWrite: false
+      });
+
+      boxMesh = new THREE.LineSegments(new THREE.BufferGeometry(), boxMat);
+      // IMPORTANT: render AFTER solids so front edges appear in front, back edges are depth-occluded.
+      boxMesh.renderOrder = 20;
+      boxMesh.frustumCulled = false;
+      scene.add(boxMesh);
+      updateBoxMeshSize();
+
+      blocksGroup = new THREE.Group();
+      scene.add(blocksGroup);
+
+      window.addEventListener("resize", resizeRenderer);
+      resizeRenderer();
+      initOrbitControls();
+      initDragging();
+
+      applyLabelShadowState();
+    }
+
+    function resizeRenderer() {
+      const width = canvas.clientWidth || (window.innerWidth - 360);
+      const height = window.innerHeight;
+
+      // Set pixel ratio so backing buffer max dimension is ~RENDER_TARGET_MAX_PX (no export-time changes).
+      const maxDimCss = Math.max(width, height);
+      const wanted = clamp(RENDER_TARGET_MAX_PX / Math.max(1, maxDimCss), 1.0, RENDER_PIXEL_RATIO_CAP);
+      renderer.setPixelRatio(wanted);
+
+      renderer.setSize(width, height, false);
+
+      cameraPerspective.aspect = width / height;
+      cameraPerspective.updateProjectionMatrix();
+      updateOrthoFrustumForDims(width, height);
+
+      updateCameraFromOrbit();
+      updateLabels();
+    }
+
+    function updateBoxMeshSize() {
+      if (!boxMesh) return;
+
+      const g = new THREE.BoxGeometry(state.box.width, state.box.height, state.box.depth);
+      const e = new THREE.EdgesGeometry(g);
+      const nonIndexed = e.toNonIndexed();
+
+      if (boxMesh.geometry) boxMesh.geometry.dispose();
+      boxMesh.geometry = nonIndexed;
+
+      // Longer dashes, smaller gaps (and keep subtle).
+      const minDim = Math.min(state.box.width, state.box.height, state.box.depth);
+      boxMesh.material.dashSize = clamp(minDim * 0.095, 1.6, 7.0);
+      boxMesh.material.gapSize  = clamp(minDim * 0.030, 0.6, 3.2);
+
+      boxMesh.computeLineDistances();
+      boxMesh.position.set(0, 0, 0);
+    }
+
+    function getLabelText(s) {
+      if (!state.showLabels) return "";
+      if (isVoidSpace(s)) return "";
+      if (state.labelMode === "code") return (s.meta?.code || s.typeId || s.id);
+      if (state.labelMode === "id") return s.id;
+      return (s.meta?.space_type || s.id);
+    }
+
+    function refreshLabelTexts() {
+      for (const s of state.spaces) {
+        const el = labelElements.get(s.id);
+        if (!el) continue;
+        el.textContent = getLabelText(s);
+      }
+      updateLabels();
+    }
+
+    function applyVoidTransparencyToMeshes() {
+      for (const s of state.spaces) {
+        if (!isVoidSpace(s)) continue;
+        const mesh = blockMeshes.get(s.id);
+        if (!mesh) continue;
+
+        const mat = mesh.material;
+        mat.transparent = true;
+        mat.depthWrite = false;
+        mat.opacity = state.voidsFullyTransparent ? 0.0 : VOID_OPACITY;
+        mat.needsUpdate = true;
+
+        mesh.visible = !state.voidsFullyTransparent;
+      }
+
+      // occlusionTargets never includes voids, so no update required here besides labels.
+      updateLabels();
+    }
+
+    function rebuildMeshes() {
+      while (blocksGroup.children.length) blocksGroup.remove(blocksGroup.children[0]);
+      blockMeshes.clear();
+
+      labelElements.clear();
+      labelsLayer.innerHTML = "";
+
+      for (const s of state.spaces) {
+        const dim = s.dim || { length: 10, height: 3, depth: 10, cornerFront: 1.5 };
+        const shape = roundedRectShape(dim.length, dim.height, dim.cornerFront);
+
+        const geom = new THREE.ExtrudeGeometry(shape, {
+          depth: dim.depth,
+          bevelEnabled: false,
+          curveSegments: 32,
+          steps: 1
+        });
+
+        geom.computeBoundingBox();
+        const bb = geom.boundingBox;
+        geom.translate(
+          -(bb.min.x + bb.max.x) * 0.5,
+          -(bb.min.y + bb.max.y) * 0.5,
+          -(bb.min.z + bb.max.z) * 0.5
+        );
+
+        const isV = isVoidSpace(s);
+
+        const mat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(getSpaceColor(s)),
+          roughness: 0.92,
+          metalness: 0.0,
+          side: THREE.FrontSide,
+          transparent: true,
+          opacity: isV ? (state.voidsFullyTransparent ? 0.0 : VOID_OPACITY) : SOLID_OPACITY,
+          depthTest: true,
+          depthWrite: isV ? false : true
+        });
+
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.rotation.set(0, FACADE_ROT_Y, 0);
+        mesh.renderOrder = isV ? 2 : 1;
+
+        mesh.userData.spaceId = s.id;
+        mesh.userData.isVoid = isV;
+
+        if (isV && state.voidsFullyTransparent) mesh.visible = false;
+
+        blocksGroup.add(mesh);
+        blockMeshes.set(s.id, mesh);
+
+        const label = document.createElement("div");
+        label.className = "bubble-label";
+        label.textContent = getLabelText(s);
+        label.style.opacity = String(LABEL_ALPHA_FRONT); // default
+        labelsLayer.appendChild(label);
+        labelElements.set(s.id, label);
+      }
+
+      // Update occlusion targets: only solid (non-void) meshes.
+      occlusionTargets = blocksGroup.children.filter(m => !m.userData?.isVoid);
+
+      updateMeshTransforms();
+      updateLabels();
+      applyLabelShadowState();
+    }
+
+    function updateMeshTransforms() {
+      for (const s of state.spaces) {
+        const mesh = blockMeshes.get(s.id);
+        if (!mesh) continue;
+        mesh.position.set(s.position.x, s.position.y, s.position.z);
+        mesh.rotation.set(0, FACADE_ROT_Y, 0);
+      }
+    }
+
+    function isOccludedByBlocks(worldPos, spaceId) {
+      const camPos = activeCamera.position;
+
+      const dir = worldPos.clone().sub(camPos);
+      const distToPoint = dir.length();
+      if (distToPoint < 1e-6) return false;
+
+      dir.normalize();
+      labelRaycaster.set(camPos, dir);
+
+      // Intersect only solid meshes; ignore voids.
+      const hits = labelRaycaster.intersectObjects(occlusionTargets, false);
+      if (!hits.length) return false;
+
+      // If the closest hit is the same space mesh, treat as not occluded.
+      // This avoids "self occlusion" at the center point.
+      const h0 = hits[0];
+      const hitSpaceId = h0.object?.userData?.spaceId;
+      if (hitSpaceId === spaceId) return false;
+
+      return h0.distance < (distToPoint - LABEL_OCCLUSION_BIAS);
+    }
+
+    function updateLabels() {
+      if (!state.showLabels) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+
+      for (const s of state.spaces) {
+        const label = labelElements.get(s.id);
+        if (!label) continue;
+
+        const txt = getLabelText(s);
+        if (!txt) { label.style.display = "none"; continue; }
+
+        if (isVoidSpace(s) && state.voidsFullyTransparent) { label.style.display = "none"; continue; }
+
+        const pos = new THREE.Vector3(s.position.x, s.position.y, s.position.z);
+        pos.project(activeCamera);
+
+        const x = (pos.x * 0.5 + 0.5) * width;
+        const y = (-pos.y * 0.5 + 0.5) * height;
+
+        const visible = pos.z < 1 && pos.z > -1 && x >= 0 && x <= width && y >= 0 && y <= height;
+        if (!visible) { label.style.display = "none"; continue; }
+
+        label.style.display = "block";
+        label.style.left = `${x}px`;
+        label.style.top = `${y}px`;
+
+        // Occlusion fade (never fully disappears)
+        const occluded = isOccludedByBlocks(new THREE.Vector3(s.position.x, s.position.y, s.position.z), s.id);
+        label.style.opacity = occluded ? String(LABEL_ALPHA_OCCLUDED) : String(LABEL_ALPHA_FRONT);
+      }
+    }
+
+    // ----------------- ORBIT CONTROLS -----------------
+    function initOrbitControls() {
+      canvas.addEventListener("mousedown", e => {
+        if (e.button !== 1) return;
+        orbit.dragging = true;
+        orbit.lastX = e.clientX;
+        orbit.lastY = e.clientY;
+      });
+
+      window.addEventListener("mouseup", () => { orbit.dragging = false; });
+
+      window.addEventListener("mousemove", e => {
+        if (!orbit.dragging) return;
+
+        const dx = e.clientX - orbit.lastX;
+        const dy = e.clientY - orbit.lastY;
+        orbit.lastX = e.clientX;
+        orbit.lastY = e.clientY;
+
+        const rotSpeed = 0.005;
+        orbit.azimuth -= dx * rotSpeed;
+        orbit.polar -= dy * rotSpeed;
+        const eps = 0.06;
+        orbit.polar = Math.max(eps, Math.min(Math.PI - eps, orbit.polar));
+        updateCameraFromOrbit();
+        updateLabels();
+      });
+
+      canvas.addEventListener("wheel", e => {
+        e.preventDefault();
+        const zoomFactor = 1 + (e.deltaY > 0 ? 0.1 : -0.1);
+        orbit.radius *= zoomFactor;
+        orbit.radius = Math.max(80, Math.min(2600, orbit.radius));
+
+        const rect = canvas.getBoundingClientRect();
+        updateOrthoFrustumForDims(rect.width, rect.height);
+
+        updateCameraFromOrbit();
+        updateLabels();
+      }, { passive: false });
+    }
+
+    // ----------------- DRAGGING -----------------
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let dragState = { space: null, plane: null };
+
+    function initDragging() {
+      canvas.addEventListener("mousedown", onMouseDown);
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    }
+
+    function getIntersections(event) {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, activeCamera);
+
+      const hits = raycaster.intersectObjects(blocksGroup.children, false);
+      if (state.voidsFullyTransparent) return hits.filter(h => !(h.object?.userData?.isVoid));
+      return hits;
+    }
+
+    function findSpaceByMesh(mesh) {
+      const id = mesh?.userData?.spaceId;
+      if (!id) return null;
+      return state.spaces.find(s => s.id === id) || null;
+    }
+
+    function onMouseDown(event) {
+      if (event.button !== 0) return;
+      const hits = getIntersections(event);
+      if (!hits.length) return;
+
+      const hit = hits[0];
+      const space = findSpaceByMesh(hit.object);
+      if (!space) return;
+
+      dragState.space = space;
+      space.pinned = true;
+
+      const normal = activeCamera.getWorldDirection(new THREE.Vector3()).clone().negate();
+      dragState.plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, hit.point.clone());
+    }
+
+    function onMouseMove(event) {
+      if (!dragState.space || !dragState.plane) return;
+
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, activeCamera);
+
+      const ray = raycaster.ray;
+      const target = new THREE.Vector3();
+      if (ray.intersectPlane(dragState.plane, target)) {
+        const cand = clampCandidateToBounds(dragState.space, { x: target.x, y: target.y, z: target.z });
+        dragState.space.position.x = cand.x;
+        dragState.space.position.y = cand.y;
+        dragState.space.position.z = cand.z;
+
+        dragState.space.velocity.x = 0;
+        dragState.space.velocity.y = 0;
+        dragState.space.velocity.z = 0;
+
+        clampToBoundsAll();
+        for (let k = 0; k < 200; k++) {
+          if (!hasAnyIntersections()) break;
+          resolveCollisionsAABB(22);
+        }
+
+        updateMeshTransforms();
+        updateLabels();
+      }
+    }
+
+    function onMouseUp() {
+      if (dragState.space) {
+        dragState.space.pinned = false;
+        dragState.space = null;
+        dragState.plane = null;
+      }
+    }
+
+    // ----------------- SIM -----------------
+    function stepSimulation(dt) {
+      if (!state.spaces.length) return;
+
+      applyHorizontalRelationshipAttraction(dt);
+
+      for (const s of state.spaces) {
+        if (s.pinned) continue;
+
+        s.velocity.y += -GRAVITY * dt;
+        if (s.velocity.y < -MAX_FALL_SPEED) s.velocity.y = -MAX_FALL_SPEED;
+
+        s.velocity.x *= DAMPING;
+        s.velocity.y *= DAMPING;
+        s.velocity.z *= DAMPING;
+
+        s.position.x += s.velocity.x * dt;
+        s.position.y += s.velocity.y * dt;
+        s.position.z += s.velocity.z * dt;
+      }
+
+      clampToBoundsAll();
+
+      for (let k = 0; k < 140; k++) {
+        if (!hasAnyIntersections()) break;
+        resolveCollisionsAABB(22);
+      }
+
+      updateMeshTransforms();
+      updateLabels();
+    }
+
+    let lastTime = performance.now();
+    function animate(now) {
+      const rawDt = (now - lastTime) / 1000;
+      const dt = Math.min(0.04, rawDt);
+      lastTime = now;
+
+      if (state.running) {
+        const subSteps = Math.max(4, Math.ceil(dt / TARGET_SUBSTEP));
+        const subDt = dt / subSteps;
+        for (let i = 0; i < subSteps; i++) stepSimulation(subDt);
+      }
+
+      renderer.render(scene, activeCamera);
+      requestAnimationFrame(animate);
+    }
+
+    // ----------------- PNG EXPORT (EXACT SCREEN, NO CAMERA/SIZE CHANGES) -----------------
+    function savePngExactScreenWithLabels() {
+      // Ensure the current frame is rendered before capture.
+      renderer.render(scene, activeCamera);
+
+      const src = renderer.domElement; // WebGL canvas
+      const exportW = src.width;
+      const exportH = src.height;
+
+      const out = document.createElement("canvas");
+      out.width = exportW;
+      out.height = exportH;
+      const ctx = out.getContext("2d");
+
+      // Draw WebGL canvas exactly as-is.
+      ctx.drawImage(src, 0, 0);
+
+      if (state.showLabels) {
+        // Ensure label positions/opacities are up-to-date.
+        updateLabels();
+
+        // Convert CSS px to backing px.
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = exportW / rect.width;
+        const scaleY = exportH / rect.height;
+
+        const layerStyle = getComputedStyle(labelsLayer);
+        const fontSizePx = parseFloat(layerStyle.fontSize) || 16;
+        const fontFamily = layerStyle.fontFamily || "HelveticaNowDisplay, Helvetica, Arial, sans-serif";
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `${Math.round(fontSizePx * scaleY)}px ${fontFamily}`;
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+
+        if (state.labelShadow) {
+          ctx.shadowColor = "rgba(0,0,0,0.85)";
+          ctx.shadowBlur = 3.5 * scaleY;
+        } else {
+          ctx.shadowColor = "rgba(0,0,0,0)";
+          ctx.shadowBlur = 0;
+        }
+
+        for (const s of state.spaces) {
+          const txt = getLabelText(s);
+          if (!txt) continue;
+          if (isVoidSpace(s)) continue;
+          if (isVoidSpace(s) && state.voidsFullyTransparent) continue;
+
+          const p = new THREE.Vector3(s.position.x, s.position.y, s.position.z);
+          p.project(activeCamera);
+
+          const xCss = (p.x * 0.5 + 0.5) * rect.width;
+          const yCss = (-p.y * 0.5 + 0.5) * rect.height;
+
+          const visible = p.z < 1 && p.z > -1 && xCss >= 0 && xCss <= rect.width && yCss >= 0 && yCss <= rect.height;
+          if (!visible) continue;
+
+          const el = labelElements.get(s.id);
+          const alpha = el ? parseFloat(el.style.opacity || "") : NaN;
+          ctx.globalAlpha = isFinite(alpha) ? alpha : LABEL_ALPHA_FRONT;
+
+          ctx.fillText(txt, xCss * scaleX, yCss * scaleY);
+        }
+
+        ctx.globalAlpha = 1.0;
+      }
+
+      const dataUrl = out.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = "view.png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // ----------------- UI -----------------
+    document.getElementById("applyBoxBtn").addEventListener("click", () => {
+      if (!applyBoxFromUI()) return;
+      if (!state.spaces.length) return;
+      spawnWeightedPlacement(true);
+      rebuildMeshes();
+    });
+
+    document.getElementById("spawnBtn").addEventListener("click", () => {
+      if (!applyBoxFromUI()) return;
+      if (!state.spaces.length) return;
+      spawnWeightedPlacement(true);
+      rebuildMeshes();
+    });
+
+    document.getElementById("toggleSimBtn").addEventListener("click", e => {
+      state.running = !state.running;
+      e.target.textContent = state.running ? "Pause" : "Play";
+    });
+
+    document.getElementById("showLabels").addEventListener("change", e => {
+      state.showLabels = e.target.checked;
+      labelsLayer.style.display = state.showLabels ? "block" : "none";
+      if (state.showLabels) updateLabels();
+      refreshLabelTexts();
+    });
+
+    document.getElementById("labelShadow").addEventListener("change", e => {
+      state.labelShadow = e.target.checked;
+      applyLabelShadowState();
+    });
+
+    document.getElementById("voidsTransparent").addEventListener("change", e => {
+      state.voidsFullyTransparent = e.target.checked;
+      applyVoidTransparencyToMeshes();
+    });
+
+    document.getElementById("labelMode").addEventListener("change", e => {
+      state.labelMode = e.target.value;
+      refreshLabelTexts();
+    });
+
+    document.getElementById("isometricView").addEventListener("change", e => {
+      state.isometric = e.target.checked;
+      updateCameraFromOrbit();
+      updateLabels();
+    });
+
+    document.getElementById("snapIsoBtn").addEventListener("click", () => {
+      orbit.azimuth = ISO_AZIMUTH;
+      orbit.polar = ISO_POLAR;
+      document.getElementById("isometricView").checked = true;
+      state.isometric = true;
+      updateCameraFromOrbit();
+      updateLabels();
+    });
+
+    document.getElementById("savePngBtn").addEventListener("click", () => {
+      savePngExactScreenWithLabels();
+    });
+
+    document.getElementById("programCsvInput").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => loadProgramFromCsv(ev.target.result);
+      reader.readAsText(file);
+    });
+
+    document.getElementById("relationCsvInput").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => loadRelationFromCsv(ev.target.result);
+      reader.readAsText(file);
+    });
+
+    document.getElementById("clearAllBtn").addEventListener("click", () => {
+      state.types = [];
+      state.connections = [];
+      state.spaces = [];
+      renderTypes();
+      renderSpaces();
+      rebuildMeshes();
+      exportArea.value = "";
+    });
+
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const spaces = state.spaces
+        .filter(s => !!s.dim)
+        .map(s => ({
+          id: s.id,
+          type: s.typeId,
+          name: s.meta?.space_type || s.id,
+          code: s.meta?.code || null,
+          family: s.meta?.family || null,
+          is_void: isVoidSpace(s),
+          allow_outside: !!s.allowOutside,
+          color: getSpaceColor(s),
+          center_3d: [s.position.x, s.position.y, s.position.z],
+          rotation_y: FACADE_ROT_Y,
+          length: s.dim.length,
+          height: s.dim.height,
+          depth: s.dim.depth,
+          corner_radius: s.dim.cornerFront
+        }));
+
+      exportArea.value = JSON.stringify({
+        mode: "3d",
+        box: { ...state.box },
+        view: {
+          isometric: !!state.isometric,
+          show_labels: !!state.showLabels,
+          label_shadow: !!state.labelShadow,
+          label_mode: state.labelMode,
+          voids_fully_transparent: !!state.voidsFullyTransparent
+        },
+        types: state.types.map(t => ({ id: t.id, name: t.name, color: t.color })),
+        spaces
+      }, null, 2);
+    });
+
+    function renderTypes() {
+      typesTableBody.innerHTML = "";
+      for (const t of state.types) {
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          `<td>${t.id}</td><td>${t.name}</td><td><div style="width:12px;height:12px;background:${t.color};border:1px solid #bbb;"></div></td>`;
+        typesTableBody.appendChild(tr);
+      }
+    }
+
+    function renderSpaces() {
+      spacesTableBody.innerHTML = "";
+      for (const s of state.spaces) {
+        const d = s.dim;
+        const dims = d ? `${d.length} × ${d.depth} × ${d.height}` : "";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${s.id}</td><td>${s.typeId}</td><td>${dims}</td>`;
+        spacesTableBody.appendChild(tr);
+      }
+    }
+
+    // ----------------- DEFAULT DATA -----------------
+    function initDefaults() {
+      state.types = [
+        { id: "QCH", name: "Quantum compute halls", color: "#CFE7FF" },
+        { id: "CDH", name: "Classical data halls", color: "#CFE7FF" },
+        { id: "LAB", name: "Labs", color: "#CFE7FF" },
+        { id: "VOID", name: "void", color: VOID_COLOR }
+      ];
+
+      state.connections = [
+        { from: "QCH", to: "CDH", value: 0.8 },
+        { from: "QCH", to: "LAB", value: 0.6 },
+        { from: "CDH", to: "LAB", value: 0.3 },
+        { from: "VOID", to: "QCH", value: -0.9 },
+        { from: "VOID", to: "CDH", value: -0.9 },
+        { from: "VOID", to: "LAB", value: -0.9 }
+      ];
+
+      const s1 = { id:"QCH_1", typeId:"QCH", dim:{length:28, depth:18, height:9, cornerFront:2.0},
+        position:{x:0,y:0,z:0}, velocity:{x:0,y:0,z:0}, pinned:false, groupId:"G1", preferred:{x:-0.4,y:0.2,z:-0.2}, allowOutside:false,
+        color:null, meta:{code:"QCH", space_type:"Quantum compute hall", family:"COMP"} };
+      s1.radiusXZ = computeRadiusXZFromDim(s1.dim);
+
+      const s2 = { id:"CDH_1", typeId:"CDH", dim:{length:24, depth:16, height:8, cornerFront:1.8},
+        position:{x:0,y:0,z:0}, velocity:{x:0,y:0,z:0}, pinned:false, groupId:"G1", preferred:{x:-0.1,y:0.2,z:-0.15}, allowOutside:false,
+        color:null, meta:{code:"CDH", space_type:"Classical data hall", family:"COMP"} };
+      s2.radiusXZ = computeRadiusXZFromDim(s2.dim);
+
+      const s3 = { id:"LAB_1", typeId:"LAB", dim:{length:18, depth:12, height:6, cornerFront:1.2},
+        position:{x:0,y:0,z:0}, velocity:{x:0,y:0,z:0}, pinned:false, groupId:null, preferred:{x:0.4,y:0.2,z:0.4}, allowOutside:false,
+        color:null, meta:{code:"LAB", space_type:"Lab", family:"SCI"} };
+      s3.radiusXZ = computeRadiusXZFromDim(s3.dim);
+
+      const s4 = { id:"V_1", typeId:"VOID", dim:{length:20, depth:14, height:9, cornerFront:1.8},
+        position:{x:0,y:0,z:0}, velocity:{x:0,y:0,z:0}, pinned:false, groupId:null, preferred:null, allowOutside:false,
+        color:VOID_COLOR, meta:{code:"VOID", space_type:"void", family:"VOID"} };
+      s4.radiusXZ = computeRadiusXZFromDim(s4.dim);
+
+      state.spaces = [s1, s2, s3, s4];
+
+      assignFamilyShadedColors();
+      renderTypes();
+      renderSpaces();
+
+      boxWInput.value = state.box.width;
+      boxHInput.value = state.box.height;
+      boxDInput.value = state.box.depth;
+
+      markAllowOutsideAndWarn(null);
+      spawnWeightedPlacement(true);
+      rebuildMeshes();
+    }
+
+    // ----------------- START -----------------
+    initThree();
+    initDefaults();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
